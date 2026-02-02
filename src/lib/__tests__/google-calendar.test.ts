@@ -2,12 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { listCalendars, getCalendarEvents } from '../google-calendar';
 import { google } from 'googleapis';
 
-const { mockCalendarListList, mockEventsList, mockJWT } = vi.hoisted(() => ({
-  mockCalendarListList: vi.fn(),
-  mockEventsList: vi.fn(),
-  mockJWT: vi.fn(),
-}));
-
 vi.mock('googleapis', () => {
   return {
     google: {
@@ -20,10 +14,10 @@ vi.mock('googleapis', () => {
       },
       calendar: vi.fn().mockReturnValue({
         calendarList: {
-          list: mockCalendarListList,
+          list: vi.fn(),
         },
         events: {
-          list: mockEventsList,
+          list: vi.fn(),
         },
       }),
     },
@@ -48,7 +42,7 @@ describe('google-calendar', () => {
         { id: 'cal2', summary: 'Calendar 2' },
       ];
 
-      const mockList = vi.mocked(google.calendar({ version: 'v3' }).calendarList.list);
+      const mockList = google.calendar({ version: 'v3' }).calendarList.list as any;
       mockList.mockResolvedValue({
         data: { items: mockItems },
       } as any);
@@ -71,7 +65,7 @@ describe('google-calendar', () => {
     });
 
     it('should return empty array if no items', async () => {
-      const mockList = vi.mocked(google.calendar({ version: 'v3' }).calendarList.list);
+      const mockList = google.calendar({ version: 'v3' }).calendarList.list as any;
       mockList.mockResolvedValue({
         data: {},
       } as any);
@@ -105,7 +99,7 @@ describe('google-calendar', () => {
         },
       ];
 
-      const mockList = vi.mocked(google.calendar({ version: 'v3' }).events.list);
+      const mockList = google.calendar({ version: 'v3' }).events.list as any;
       mockList.mockResolvedValue({
         data: { items: mockItems },
       } as any);
@@ -126,7 +120,7 @@ describe('google-calendar', () => {
     });
 
     it('should pass correct parameters to google api', async () => {
-      const mockList = vi.mocked(google.calendar({ version: 'v3' }).events.list);
+      const mockList = google.calendar({ version: 'v3' }).events.list as any;
       mockList.mockResolvedValue({ data: { items: [] } } as any);
 
       const timeMin = new Date('2024-01-01T00:00:00Z');
