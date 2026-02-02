@@ -1,0 +1,162 @@
+import { Client } from '@notionhq/client';
+import pLimit from 'p-limit';
+import { CalendarEvent } from '../types/calendar';
+import { NOTION_SYNC_PROPS } from '../types/notion';
+
+const limit = pLimit(3);
+
+export class NotionClient {
+  private client: Client;
+
+  constructor(token: string) {
+    this.client = new Client({ auth: token });
+  }
+
+  async ensureSyncProperties(databaseId: string) {
+    return limit(async () => {
+      const database = await this.client.databases.retrieve({ database_id: databaseId });
+      const properties = database.properties;
+
+      const updates: any = {};
+
+      if (!properties[NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]) {
+        updates[NOTION_SYNC_PROPS.GOOGLE_EVENT_ID] = { rich_text: {} };
+      }
+      if (!properties[NOTION_SYNC_PROPS.CALENDAR_NAME]) {
+        updates[NOTION_SYNC_PROPS.CALENDAR_NAME] = { rich_text: {} };
+      }
+      if (!properties[NOTION_SYNC_PROPS.LAST_SYNCED]) {
+        updates[NOTION_SYNC_PROPS.LAST_SYNCED] = { date: {} };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await this.client.databases.update({
+          database_id: databaseId,
+          properties: updates,
+        });
+      }
+    });
+  }
+
+  async findPageByGoogleEventId(databaseId: string, googleEventId: string) {
+    return limit(async () => {
+      const response = await this.client.databases.query({
+        database_id: databaseId,
+        filter: {
+          property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
+          rich_text: {
+            equals: googleEventId,
+          },
+        },
+      });
+
+      return response.results[0] || null;
+    });
+  }
+
+  async createPage(databaseId: string, event: CalendarEvent, calendarName: string) {
+    return limit(async () => {
+      const properties = this.mapEventToProperties(event, calendarName);
+      
+      return await this.client.pages.create({
+        parent: { database_id: databaseId },
+        properties,
+      });
+    });
+  }
+
+  async updatePage(pageId: string, event: CalendarEvent, calendarName: string) {
+    return limit(async () => {
+      const properties = this.mapEventToProperties(event, calendarName);
+      
+      return await this.client.pages.update({
+        page_id: pageId,
+        properties,
+      });
+    });
+  }
+
+  async deletePage(pageId: string) {
+    return limit(async () => {
+      return await this.client.pages.update({
+        page_id: pageId,
+        archived: true,
+      });
+    });
+  }
+
+  private mapEventToProperties(event: CalendarEvent, calendarName: string) {
+    const startTime = event.start.dateTime || event.start.date;
+    const endTime = event.end.dateTime || event.end.date;
+
+    const properties: any = {
+      title: {
+        title: [
+          {
+            text: {
+              content: event.summary || '(No Title)',
+            },
+          },
+        ],
+      },
+      [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: {
+        rich_text: [
+          {
+            text: {
+              content: event.id,
+            },
+          },
+        ],
+      },
+      [NOTION_SYNC_PROPS.CALENDAR_NAME]: {
+        rich_text: [
+          {
+            text: {
+              content: calendarName,
+            },
+          },
+        ],
+      },
+      [NOTION_SYNC_PROPS.LAST_SYNCED]: {
+        date: {
+          start: new Date().toISOString(),
+        },
+      },
+    };
+
+    if (startTime && endTime) {
+      properties['Date'] = {
+        date: {
+          start: startTime,
+          end: startTime === endTime ? null : endTime,
+        },
+      };
+    }
+
+    if (event.location) {
+      properties['Location'] = {
+        rich_text: [
+          {
+            text: {
+              content: event.location,
+            },
+          },
+        ],
+      };
+    }
+
+    if (event.description) {
+      properties['Description'] = {
+        rich_text: [
+          {
+            text: {
+              content: event.description.substring(0, 2000),
+            },
+          },
+        ],
+      }
+    }
+
+    return properties;
+  }
+}
