@@ -38,6 +38,31 @@ export class NotionClient {
     });
   }
 
+  async getSyncedPages(databaseId: string) {
+    return limit(async () => {
+      const pages = [];
+      let cursor = undefined;
+
+      do {
+        const response = await this.client.databases.query({
+          database_id: databaseId,
+          start_cursor: cursor,
+          filter: {
+            property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
+            rich_text: {
+              is_not_empty: true,
+            },
+          },
+        });
+
+        pages.push(...response.results);
+        cursor = response.next_cursor;
+      } while (cursor);
+
+      return pages;
+    });
+  }
+
   async findPageByGoogleEventId(databaseId: string, googleEventId: string) {
     return limit(async () => {
       const response = await this.client.databases.query({

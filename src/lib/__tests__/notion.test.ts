@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotionClient } from '../notion';
 import { NOTION_SYNC_PROPS } from '../../types/notion';
 
+vi.mock('p-limit', () => ({
+  default: () => (fn: any) => fn(),
+}));
+
 const mockDatabasesRetrieve = vi.fn();
 const mockDatabasesUpdate = vi.fn();
 const mockDatabasesQuery = vi.fn();
