@@ -13,6 +13,7 @@ export interface SyncResult {
 export async function syncCalendarEvents(): Promise<SyncResult> {
   const NOTION_KEY = process.env.NOTION_KEY;
   const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
+  const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
 
   if (!NOTION_KEY || !NOTION_DATABASE_ID) {
     throw new Error('Missing NOTION_KEY or NOTION_DATABASE_ID');
@@ -27,10 +28,24 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   const timeMax = new Date(now);
   timeMax.setDate(now.getDate() + 90);
 
-  const calendars = await listCalendars();
   const allGoogleEvents: { event: CalendarEvent; calendarName: string }[] = [];
 
+  if (GOOGLE_CALENDAR_ID) {
+    try {
+      const events = await getCalendarEvents(GOOGLE_CALENDAR_ID, timeMin, timeMax);
+      events.forEach((event) => {
+        if (event.status !== 'cancelled') {
+          allGoogleEvents.push({ event, calendarName: GOOGLE_CALENDAR_ID });
+        }
+      });
+    } catch (e) {
+      console.error(`Failed to fetch events for calendar ${GOOGLE_CALENDAR_ID}`, e);
+    }
+  }
+
+  const calendars = await listCalendars();
   for (const calendar of calendars) {
+    if (calendar.id === GOOGLE_CALENDAR_ID) continue;
     try {
       const events = await getCalendarEvents(calendar.id, timeMin, timeMax);
       events.forEach((event) => {
