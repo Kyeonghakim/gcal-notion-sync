@@ -35,7 +35,7 @@ export class NotionClient {
         updates[NOTION_SYNC_PROPS.CALENDAR_NAME] = { rich_text: {} };
       }
       if (!properties[NOTION_SYNC_PROPS.LAST_SYNCED]) {
-        updates[NOTION_SYNC_PROPS.LAST_SYNCED] = { rich_text: {} };
+        updates[NOTION_SYNC_PROPS.LAST_SYNCED] = { date: {} };
       }
 
       if (Object.keys(updates).length > 0) {
@@ -159,13 +159,9 @@ export class NotionClient {
         ],
       },
       [NOTION_SYNC_PROPS.LAST_SYNCED]: {
-        rich_text: [
-          {
-            text: {
-              content: new Date().toISOString(),
-            },
-          },
-        ],
+        date: {
+          start: new Date().toISOString(),
+        },
       },
     };
 
