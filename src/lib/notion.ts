@@ -5,6 +5,15 @@ import { NOTION_SYNC_PROPS } from '../types/notion';
 
 const limit = pLimit(3);
 
+interface DatabaseWithProperties {
+  properties: Record<string, unknown>;
+}
+
+interface QueryResponse {
+  results: Array<Record<string, unknown>>;
+  next_cursor: string | null;
+}
+
 export class NotionClient {
   private client: Client;
 
@@ -14,10 +23,10 @@ export class NotionClient {
 
   async ensureSyncProperties(databaseId: string) {
     return limit(async () => {
-      const database = await this.client.databases.retrieve({ database_id: databaseId });
+      const database = await this.client.databases.retrieve({ database_id: databaseId }) as unknown as DatabaseWithProperties;
       const properties = database.properties;
 
-      const updates: any = {};
+      const updates: Record<string, { rich_text: object } | { date: object }> = {};
 
       if (!properties[NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]) {
         updates[NOTION_SYNC_PROPS.GOOGLE_EVENT_ID] = { rich_text: {} };
@@ -30,7 +39,7 @@ export class NotionClient {
       }
 
       if (Object.keys(updates).length > 0) {
-        await this.client.databases.update({
+        await (this.client.databases as unknown as { update: (args: Record<string, unknown>) => Promise<unknown> }).update({
           database_id: databaseId,
           properties: updates,
         });
@@ -40,11 +49,11 @@ export class NotionClient {
 
   async getSyncedPages(databaseId: string) {
     return limit(async () => {
-      const pages = [];
-      let cursor = undefined;
+      const pages: Array<Record<string, unknown>> = [];
+      let cursor: string | undefined = undefined;
 
       do {
-        const response = await this.client.databases.query({
+        const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
           database_id: databaseId,
           start_cursor: cursor,
           filter: {
@@ -56,7 +65,7 @@ export class NotionClient {
         });
 
         pages.push(...response.results);
-        cursor = response.next_cursor;
+        cursor = response.next_cursor ?? undefined;
       } while (cursor);
 
       return pages;
@@ -65,7 +74,7 @@ export class NotionClient {
 
   async findPageByGoogleEventId(databaseId: string, googleEventId: string) {
     return limit(async () => {
-      const response = await this.client.databases.query({
+      const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
         database_id: databaseId,
         filter: {
           property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
@@ -85,7 +94,7 @@ export class NotionClient {
       
       return await this.client.pages.create({
         parent: { database_id: databaseId },
-        properties,
+        properties: properties as Parameters<typeof this.client.pages.create>[0]['properties'],
       });
     });
   }
@@ -96,7 +105,7 @@ export class NotionClient {
       
       return await this.client.pages.update({
         page_id: pageId,
-        properties,
+        properties: properties as Parameters<typeof this.client.pages.update>[0]['properties'],
       });
     });
   }
@@ -110,11 +119,11 @@ export class NotionClient {
     });
   }
 
-  private mapEventToProperties(event: CalendarEvent, calendarName: string) {
+  private mapEventToProperties(event: CalendarEvent, calendarName: string): Record<string, unknown> {
     const startTime = event.start.dateTime || event.start.date;
     const endTime = event.end.dateTime || event.end.date;
 
-    const properties: any = {
+    const properties: Record<string, unknown> = {
       title: {
         title: [
           {

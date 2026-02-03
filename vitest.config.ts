@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    isolate: true,
+    fileParallelism: false,
   },
   resolve: {
     alias: {

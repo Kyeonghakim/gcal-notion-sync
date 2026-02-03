@@ -11,12 +11,11 @@ function getAuth() {
 
   try {
     const credentials = JSON.parse(serviceAccountKey);
-    return new google.auth.JWT(
-      credentials.client_email,
-      undefined,
-      credentials.private_key,
-      SCOPES
-    );
+    return new google.auth.JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      scopes: SCOPES,
+    });
   } catch (error) {
     throw new Error('Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY: ' + (error as Error).message);
   }
