@@ -24,7 +24,7 @@ export class NotionClient {
   async ensureSyncProperties(databaseId: string) {
     return limit(async () => {
       const database = await this.client.databases.retrieve({ database_id: databaseId }) as unknown as DatabaseWithProperties;
-      const properties = database.properties;
+      const properties = database?.properties || {};
 
       const updates: Record<string, { rich_text: object } | { date: object }> = {};
 
