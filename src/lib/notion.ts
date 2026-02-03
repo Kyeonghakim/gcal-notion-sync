@@ -170,17 +170,11 @@ export class NotionClient {
     };
 
     if (startTime && endTime) {
-      const dateDisplay = startTime === endTime 
-        ? startTime 
-        : `${startTime} → ${endTime}`;
-      properties['Date'] = {
-        rich_text: [
-          {
-            text: {
-              content: dateDisplay,
-            },
-          },
-        ],
+      properties['Event Date'] = {
+        date: {
+          start: startTime,
+          end: startTime === endTime ? null : endTime,
+        },
       };
     }
 
