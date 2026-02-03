@@ -35,7 +35,7 @@ export class NotionClient {
         updates[NOTION_SYNC_PROPS.CALENDAR_NAME] = { rich_text: {} };
       }
       if (!properties[NOTION_SYNC_PROPS.LAST_SYNCED]) {
-        updates[NOTION_SYNC_PROPS.LAST_SYNCED] = { date: {} };
+        updates[NOTION_SYNC_PROPS.LAST_SYNCED] = { rich_text: {} };
       }
 
       if (Object.keys(updates).length > 0) {
@@ -159,18 +159,28 @@ export class NotionClient {
         ],
       },
       [NOTION_SYNC_PROPS.LAST_SYNCED]: {
-        date: {
-          start: new Date().toISOString(),
-        },
+        rich_text: [
+          {
+            text: {
+              content: new Date().toISOString(),
+            },
+          },
+        ],
       },
     };
 
     if (startTime && endTime) {
+      const dateDisplay = startTime === endTime 
+        ? startTime 
+        : `${startTime} → ${endTime}`;
       properties['Date'] = {
-        date: {
-          start: startTime,
-          end: startTime === endTime ? null : endTime,
-        },
+        rich_text: [
+          {
+            text: {
+              content: dateDisplay,
+            },
+          },
+        ],
       };
     }
 
