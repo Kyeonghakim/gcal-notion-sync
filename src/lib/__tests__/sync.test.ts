@@ -69,14 +69,14 @@ describe('syncCalendarEvents', () => {
         id: 'p1',
         properties: {
           [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: { rich_text: [{ plain_text: 'g1' }] },
-          'Date': { date: { start: now.toISOString() } }
+          'Event Date': { date: { start: now.toISOString() } }
         }
       },
       {
         id: 'p3',
         properties: {
           [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: { rich_text: [{ plain_text: 'g3' }] },
-          'Date': { date: { start: now.toISOString() } }
+          'Event Date': { date: { start: now.toISOString() } }
         }
       }
     ];
@@ -118,7 +118,7 @@ describe('syncCalendarEvents', () => {
         id: 'p_old',
         properties: {
           [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: { rich_text: [{ plain_text: 'g_old' }] },
-          'Date': { date: { start: oldDate.toISOString() } }
+          'Event Date': { date: { start: oldDate.toISOString() } }
         }
       }
     ];

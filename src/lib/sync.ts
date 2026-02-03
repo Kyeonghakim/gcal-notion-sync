@@ -95,7 +95,7 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   for (const [gId, page] of notionPageMap.entries()) {
     if (!processedGoogleEventIds.has(gId)) {
       // Logic: If page date is within [timeMin, timeMax] and NOT in GCal, then it was deleted in GCal.
-      const dateProp = page.properties['Date'];
+      const dateProp = page.properties['Event Date'];
       let pageDate: Date | null = null;
 
       if (dateProp && dateProp.date && dateProp.date.start) {
