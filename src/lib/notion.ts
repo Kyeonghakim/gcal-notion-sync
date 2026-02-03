@@ -52,21 +52,28 @@ export class NotionClient {
       const pages: Array<Record<string, unknown>> = [];
       let cursor: string | undefined = undefined;
 
-      do {
-        const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
-          database_id: databaseId,
-          start_cursor: cursor,
-          filter: {
-            property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
-            rich_text: {
-              is_not_empty: true,
+      try {
+        do {
+          const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
+            database_id: databaseId,
+            start_cursor: cursor,
+            filter: {
+              property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
+              rich_text: {
+                is_not_empty: true,
+              },
             },
-          },
-        });
+          });
 
-        pages.push(...response.results);
-        cursor = response.next_cursor ?? undefined;
-      } while (cursor);
+          pages.push(...response.results);
+          cursor = response.next_cursor ?? undefined;
+        } while (cursor);
+      } catch (error) {
+        // If the property doesn't exist yet, return empty array
+        // This happens on first sync before ensureSyncProperties creates the property
+        console.warn('getSyncedPages filter failed, returning empty array:', (error as Error).message);
+        return [];
+      }
 
       return pages;
     });
