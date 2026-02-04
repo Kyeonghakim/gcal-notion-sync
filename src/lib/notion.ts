@@ -166,7 +166,7 @@ export class NotionClient {
     };
 
     if (startTime && endTime) {
-      properties['Event Date'] = {
+      properties['데드라인'] = {
         date: {
           start: startTime,
           end: startTime === endTime ? null : endTime,

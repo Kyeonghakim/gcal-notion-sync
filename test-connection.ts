@@ -6,7 +6,7 @@ config();
 
 async function testNotion() {
     console.log('Testing Notion Connection...');
-    const notion = new Client({ auth: process.env.NOTION_TOKEN });
+    const notion = new Client({ auth: process.env.NOTION_KEY });
     try {
         const response = await notion.databases.retrieve({ database_id: process.env.NOTION_DATABASE_ID! });
         console.log(`✅ Notion Connected! Database Title: ${response.title[0]?.plain_text || 'Untitled'}`);
