@@ -9,11 +9,6 @@ interface DatabaseWithProperties {
   properties: Record<string, unknown>;
 }
 
-interface QueryResponse {
-  results: Array<Record<string, unknown>>;
-  next_cursor: string | null;
-}
-
 export class NotionClient {
   private client: Client;
 
@@ -39,10 +34,10 @@ export class NotionClient {
       }
 
       if (Object.keys(updates).length > 0) {
-        await (this.client.databases as unknown as { update: (args: Record<string, unknown>) => Promise<unknown> }).update({
+        await this.client.databases.update({
           database_id: databaseId,
           properties: updates,
-        });
+        } as Parameters<typeof this.client.databases.update>[0]);
       }
     });
   }
@@ -54,8 +49,8 @@ export class NotionClient {
 
       try {
         do {
-          const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
-            database_id: databaseId,
+          const response = await this.client.dataSources.query({
+            data_source_id: databaseId,
             start_cursor: cursor,
             filter: {
               property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
@@ -94,8 +89,8 @@ export class NotionClient {
 
   async findPageByGoogleEventId(databaseId: string, googleEventId: string) {
     return limit(async () => {
-      const response = await (this.client.databases as unknown as { query: (args: Record<string, unknown>) => Promise<QueryResponse> }).query({
-        database_id: databaseId,
+      const response = await this.client.dataSources.query({
+        data_source_id: databaseId,
         filter: {
           property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
           rich_text: {

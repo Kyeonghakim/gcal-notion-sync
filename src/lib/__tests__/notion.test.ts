@@ -8,7 +8,7 @@ vi.mock('p-limit', () => ({
 
 const mockDatabasesRetrieve = vi.fn();
 const mockDatabasesUpdate = vi.fn();
-const mockDatabasesQuery = vi.fn();
+const mockDataSourcesQuery = vi.fn();
 const mockPagesCreate = vi.fn();
 const mockPagesUpdate = vi.fn();
 
@@ -18,7 +18,9 @@ vi.mock('@notionhq/client', () => {
       databases = {
         retrieve: mockDatabasesRetrieve,
         update: mockDatabasesUpdate,
-        query: mockDatabasesQuery,
+      };
+      dataSources = {
+        query: mockDataSourcesQuery,
       };
       pages = {
         create: mockPagesCreate,
@@ -75,14 +77,14 @@ describe('NotionClient', () => {
   describe('findPageByGoogleEventId', () => {
     it('should query the database with correct filter', async () => {
       const googleEventId = 'test-event-id';
-      mockDatabasesQuery.mockResolvedValueOnce({
+      mockDataSourcesQuery.mockResolvedValueOnce({
         results: [{ id: 'page-id' }],
       });
 
       const result = await notionClient.findPageByGoogleEventId(databaseId, googleEventId);
 
-      expect(mockDatabasesQuery).toHaveBeenCalledWith({
-        database_id: databaseId,
+      expect(mockDataSourcesQuery).toHaveBeenCalledWith({
+        data_source_id: databaseId,
         filter: {
           property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
           rich_text: {
@@ -94,7 +96,7 @@ describe('NotionClient', () => {
     });
 
     it('should return null if no page is found', async () => {
-      mockDatabasesQuery.mockResolvedValueOnce({ results: [] });
+      mockDataSourcesQuery.mockResolvedValueOnce({ results: [] });
 
       const result = await notionClient.findPageByGoogleEventId(databaseId, 'missing-id');
 
