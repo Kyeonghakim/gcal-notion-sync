@@ -49,8 +49,8 @@ export class NotionClient {
 
       try {
         do {
-          const response = await this.client.dataSources.query({
-            data_source_id: databaseId,
+          const response = await this.client.databases.query({
+            database_id: databaseId,
             start_cursor: cursor,
             filter: {
               property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
@@ -89,8 +89,8 @@ export class NotionClient {
 
   async findPageByGoogleEventId(databaseId: string, googleEventId: string) {
     return limit(async () => {
-      const response = await this.client.dataSources.query({
-        data_source_id: databaseId,
+      const response = await this.client.databases.query({
+        database_id: databaseId,
         filter: {
           property: NOTION_SYNC_PROPS.GOOGLE_EVENT_ID,
           rich_text: {
