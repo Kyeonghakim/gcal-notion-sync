@@ -123,7 +123,7 @@ describe('NotionClient', () => {
           title: { title: [{ text: { content: 'Test Event' } }] },
           [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: { rich_text: [{ text: { content: 'event-id' } }] },
           [NOTION_SYNC_PROPS.CALENDAR_NAME]: { rich_text: [{ text: { content: 'Main Calendar' } }] },
-          'Event Date': { date: { start: '2023-01-01T10:00:00Z', end: '2023-01-01T11:00:00Z' } },
+          '데드라인': { date: { start: '2023-01-01T10:00:00Z', end: '2023-01-01T11:00:00Z' } },
           'Location': { rich_text: [{ text: { content: 'Test Location' } }] },
           'Description': { rich_text: [{ text: { content: 'Test Description' } }] },
         }),

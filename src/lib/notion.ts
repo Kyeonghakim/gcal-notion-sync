@@ -69,10 +69,23 @@ export class NotionClient {
           cursor = response.next_cursor ?? undefined;
         } while (cursor);
       } catch (error) {
-        // If the property doesn't exist yet, return empty array
+        const errorMessage = (error as Error).message || '';
+        // Only return empty array if the property doesn't exist yet
         // This happens on first sync before ensureSyncProperties creates the property
-        console.warn('getSyncedPages filter failed, returning empty array:', (error as Error).message);
-        return [];
+        const isPropertyNotFoundError = 
+          errorMessage.includes('property does not exist') ||
+          errorMessage.includes('Could not find property') ||
+          errorMessage.includes('is not a property that exists');
+        
+        if (isPropertyNotFoundError) {
+          console.warn('getSyncedPages: Property not found (first sync), returning empty array');
+          return [];
+        }
+        
+        // For all other errors (network, rate limit, etc.), re-throw
+        // This prevents silent failures that could cause duplicate entries
+        console.error('getSyncedPages failed with critical error:', errorMessage);
+        throw error;
       }
 
       return pages;

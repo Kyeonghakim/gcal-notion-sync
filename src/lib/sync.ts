@@ -8,6 +8,7 @@ export interface SyncResult {
   updated: number;
   deleted: number;
   errors: Array<{ eventId: string; error: string }>;
+  calendarErrors: Array<{ calendarId: string; error: string }>;
 }
 
 export async function syncCalendarEvents(): Promise<SyncResult> {
@@ -20,7 +21,13 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   }
 
   const notion = new NotionClient(NOTION_KEY);
-  await notion.ensureSyncProperties(NOTION_DATABASE_ID);
+  const result: SyncResult = { added: 0, updated: 0, deleted: 0, errors: [], calendarErrors: [] };
+
+  try {
+    await notion.ensureSyncProperties(NOTION_DATABASE_ID);
+  } catch (e) {
+    throw new Error(`Failed to ensure Notion sync properties: ${(e as Error).message}`);
+  }
 
   const now = new Date();
   const timeMin = new Date(now);
@@ -39,11 +46,19 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
         }
       });
     } catch (e) {
+      result.calendarErrors.push({ calendarId: GOOGLE_CALENDAR_ID, error: (e as Error).message });
       console.error(`Failed to fetch events for calendar ${GOOGLE_CALENDAR_ID}`, e);
     }
   }
 
-  const calendars = await listCalendars();
+  let calendars: Awaited<ReturnType<typeof listCalendars>> = [];
+  try {
+    calendars = await listCalendars();
+  } catch (e) {
+    result.calendarErrors.push({ calendarId: 'listCalendars', error: (e as Error).message });
+    console.error('Failed to list calendars', e);
+  }
+
   for (const calendar of calendars) {
     if (calendar.id === GOOGLE_CALENDAR_ID) continue;
     try {
@@ -54,6 +69,7 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
         }
       });
     } catch (e) {
+      result.calendarErrors.push({ calendarId: calendar.id, error: (e as Error).message });
       console.error(`Failed to fetch events for calendar ${calendar.summary}`, e);
     }
   }
@@ -73,7 +89,6 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
     }
   });
 
-  const result: SyncResult = { added: 0, updated: 0, deleted: 0, errors: [] };
   const processedGoogleEventIds = new Set<string>();
 
   for (const { event, calendarName } of allGoogleEvents) {
