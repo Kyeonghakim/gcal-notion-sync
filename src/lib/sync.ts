@@ -39,9 +39,9 @@ function hasEventChanged(page: any, event: CalendarEvent, calendarName: string):
 }
 
 export async function syncCalendarEvents(): Promise<SyncResult> {
-  const NOTION_KEY = process.env.NOTION_KEY;
-  const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
-  const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
+  const NOTION_KEY = process.env.NOTION_KEY?.trim();
+  const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID?.trim();
+  const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID?.trim();
 
   if (!NOTION_KEY || !NOTION_DATABASE_ID) {
     throw new Error('Missing NOTION_KEY or NOTION_DATABASE_ID');
