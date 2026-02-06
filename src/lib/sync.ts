@@ -2,13 +2,40 @@ import { listCalendars, getCalendarEvents } from './google-calendar';
 import { NotionClient } from './notion';
 import { NOTION_SYNC_PROPS } from '../types/notion';
 import { CalendarEvent } from '../types/calendar';
+import pLimit from 'p-limit';
 
 export interface SyncResult {
   added: number;
   updated: number;
   deleted: number;
+  skipped: number;
   errors: Array<{ eventId: string; error: string }>;
   calendarErrors: Array<{ calendarId: string; error: string }>;
+}
+
+function normalizeDateTime(dt: string | undefined): string {
+  if (!dt) return '';
+  const d = new Date(dt);
+  return isNaN(d.getTime()) ? dt : d.toISOString();
+}
+
+function hasEventChanged(page: any, event: CalendarEvent, calendarName: string): boolean {
+  const props = page.properties;
+  
+  const titleProp = props['title'] || props['ToDo'];
+  const currentTitle = titleProp?.title?.[0]?.plain_text || '';
+  if (currentTitle !== (event.summary || '(No Title)')) return true;
+  
+  const calProp = props[NOTION_SYNC_PROPS.CALENDAR_NAME];
+  const currentCal = calProp?.rich_text?.[0]?.plain_text || '';
+  if (currentCal !== calendarName) return true;
+  
+  const dateProp = props['데드라인'];
+  const currentStart = normalizeDateTime(dateProp?.date?.start);
+  const eventStart = normalizeDateTime(event.start.dateTime || event.start.date);
+  if (currentStart !== eventStart) return true;
+  
+  return false;
 }
 
 export async function syncCalendarEvents(): Promise<SyncResult> {
@@ -21,7 +48,7 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   }
 
   const notion = new NotionClient(NOTION_KEY);
-  const result: SyncResult = { added: 0, updated: 0, deleted: 0, errors: [], calendarErrors: [] };
+  const result: SyncResult = { added: 0, updated: 0, deleted: 0, skipped: 0, errors: [], calendarErrors: [] };
 
   try {
     await notion.ensureSyncProperties(NOTION_DATABASE_ID);
@@ -90,42 +117,61 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   });
 
   const processedGoogleEventIds = new Set<string>();
+  allGoogleEvents.forEach(({ event }) => processedGoogleEventIds.add(event.id));
 
-  for (const { event, calendarName } of allGoogleEvents) {
-    processedGoogleEventIds.add(event.id);
-    try {
-      if (notionPageMap.has(event.id)) {
-        const page = notionPageMap.get(event.id);
-        await notion.updatePage(page.id, event, calendarName);
-        result.updated++;
-      } else {
-        await notion.createPage(NOTION_DATABASE_ID, event, calendarName);
-        result.added++;
+  const limit = pLimit(5);
+  
+  const syncTasks = allGoogleEvents.map(({ event, calendarName }) =>
+    limit(async () => {
+      try {
+        if (notionPageMap.has(event.id)) {
+          const page = notionPageMap.get(event.id);
+          if (!hasEventChanged(page, event, calendarName)) {
+            return { type: 'skipped' as const, eventId: event.id };
+          }
+          await notion.updatePage(page.id, event, calendarName);
+          return { type: 'updated' as const, eventId: event.id };
+        } else {
+          await notion.createPage(NOTION_DATABASE_ID, event, calendarName);
+          return { type: 'added' as const, eventId: event.id };
+        }
+      } catch (error) {
+        return { type: 'error' as const, eventId: event.id, error: (error as Error).message };
       }
-    } catch (error) {
-      result.errors.push({ eventId: event.id, error: (error as Error).message });
-    }
+    })
+  );
+
+  const syncResults = await Promise.all(syncTasks);
+  for (const r of syncResults) {
+    if (r.type === 'updated') result.updated++;
+    else if (r.type === 'added') result.added++;
+    else if (r.type === 'skipped') result.skipped++;
+    else if (r.type === 'error') result.errors.push({ eventId: r.eventId, error: r.error });
   }
 
-  for (const [gId, page] of notionPageMap.entries()) {
-    if (!processedGoogleEventIds.has(gId)) {
-      // Logic: If page date is within [timeMin, timeMax] and NOT in GCal, then it was deleted in GCal.
-      const dateProp = page.properties['데드라인'];
-      let pageDate: Date | null = null;
+  const pagesToDelete = Array.from(notionPageMap.entries()).filter(([gId, page]) => {
+    if (processedGoogleEventIds.has(gId)) return false;
+    const dateProp = page.properties['데드라인'];
+    if (!dateProp?.date?.start) return false;
+    const pageDate = new Date(dateProp.date.start);
+    return pageDate >= timeMin && pageDate <= timeMax;
+  });
 
-      if (dateProp && dateProp.date && dateProp.date.start) {
-        pageDate = new Date(dateProp.date.start);
+  const deleteTasks = pagesToDelete.map(([gId, page]) =>
+    limit(async () => {
+      try {
+        await notion.deletePage(page.id);
+        return { type: 'deleted' as const, eventId: gId };
+      } catch (error) {
+        return { type: 'error' as const, eventId: gId, error: `Delete failed: ${(error as Error).message}` };
       }
+    })
+  );
 
-      if (pageDate && pageDate >= timeMin && pageDate <= timeMax) {
-        try {
-          await notion.deletePage(page.id);
-          result.deleted++;
-        } catch (error) {
-          result.errors.push({ eventId: gId, error: `Delete failed: ${(error as Error).message}` });
-        }
-      }
-    }
+  const deleteResults = await Promise.all(deleteTasks);
+  for (const r of deleteResults) {
+    if (r.type === 'deleted') result.deleted++;
+    else if (r.type === 'error') result.errors.push({ eventId: r.eventId, error: r.error });
   }
 
   return result;
