@@ -4,9 +4,15 @@ import { CalendarListEntry, CalendarEvent } from '@/types/calendar';
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
 function getAuth() {
-  const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!serviceAccountKey) {
     throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
+  }
+
+  serviceAccountKey = serviceAccountKey.trim();
+  if ((serviceAccountKey.startsWith("'") && serviceAccountKey.endsWith("'")) ||
+      (serviceAccountKey.startsWith('"') && serviceAccountKey.endsWith('"'))) {
+    serviceAccountKey = serviceAccountKey.slice(1, -1);
   }
 
   try {

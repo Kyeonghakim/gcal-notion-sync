@@ -56,6 +56,7 @@ describe('syncCalendarEvents', () => {
     const mockNotionClientInstance = {
       ensureSyncProperties: vi.fn().mockResolvedValue(undefined),
       getSyncedPages: vi.fn(),
+      findPageByGoogleEventId: vi.fn().mockResolvedValue(null),
       createPage: vi.fn().mockResolvedValue({}),
       updatePage: vi.fn().mockResolvedValue({}),
       deletePage: vi.fn().mockResolvedValue({}),
@@ -69,6 +70,8 @@ describe('syncCalendarEvents', () => {
         id: 'p1',
         properties: {
           [NOTION_SYNC_PROPS.GOOGLE_EVENT_ID]: { rich_text: [{ plain_text: 'g1' }] },
+          'ToDo': { title: [{ plain_text: 'Event 1' }] },
+          'Calendar Name': { rich_text: [{ plain_text: 'Calendar 1' }] },
           '데드라인': { date: { start: now.toISOString() } }
         }
       },
@@ -85,12 +88,11 @@ describe('syncCalendarEvents', () => {
     const result = await syncCalendarEvents();
 
     expect(result.added).toBe(1);
-    expect(result.updated).toBe(1);
+    expect(result.skipped).toBe(1);
     expect(result.deleted).toBe(1);
     expect(result.errors).toHaveLength(0);
 
     expect(mockNotionClientInstance.createPage).toHaveBeenCalledWith(mockDatabaseId, event2, 'Calendar 1');
-    expect(mockNotionClientInstance.updatePage).toHaveBeenCalledWith('p1', event1, 'Calendar 1');
     expect(mockNotionClientInstance.deletePage).toHaveBeenCalledWith('p3');
   });
 
@@ -102,6 +104,7 @@ describe('syncCalendarEvents', () => {
     const mockNotionClientInstance = {
       ensureSyncProperties: vi.fn().mockResolvedValue(undefined),
       getSyncedPages: vi.fn(),
+      findPageByGoogleEventId: vi.fn().mockResolvedValue(null),
       createPage: vi.fn(),
       updatePage: vi.fn(),
       deletePage: vi.fn(),
@@ -140,6 +143,7 @@ describe('syncCalendarEvents', () => {
     const mockNotionClientInstance = {
       ensureSyncProperties: vi.fn().mockResolvedValue(undefined),
       getSyncedPages: vi.fn().mockResolvedValue([]),
+      findPageByGoogleEventId: vi.fn().mockResolvedValue(null),
       createPage: vi.fn().mockRejectedValue(new Error('Notion API Error')),
       updatePage: vi.fn(),
       deletePage: vi.fn(),

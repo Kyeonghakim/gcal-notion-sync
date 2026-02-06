@@ -119,6 +119,13 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
   const processedGoogleEventIds = new Set<string>();
   allGoogleEvents.forEach(({ event }) => processedGoogleEventIds.add(event.id));
 
+  const googleFetchFailed = allGoogleEvents.length === 0 && result.calendarErrors.length > 0;
+  
+  if (googleFetchFailed) {
+    console.warn('Google Calendar fetch completely failed - skipping all sync operations to prevent data loss');
+    return result;
+  }
+
   const limit = pLimit(5);
   
   const syncTasks = allGoogleEvents.map(({ event, calendarName }) =>
@@ -132,6 +139,11 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
           await notion.updatePage(page.id, event, calendarName);
           return { type: 'updated' as const, eventId: event.id };
         } else {
+          const existingPage = await notion.findPageByGoogleEventId(NOTION_DATABASE_ID, event.id);
+          if (existingPage) {
+            await notion.updatePage(existingPage.id, event, calendarName);
+            return { type: 'updated' as const, eventId: event.id };
+          }
           await notion.createPage(NOTION_DATABASE_ID, event, calendarName);
           return { type: 'added' as const, eventId: event.id };
         }
