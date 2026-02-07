@@ -126,9 +126,17 @@ export async function syncCalendarEvents(): Promise<SyncResult> {
     return result;
   }
 
+  // Deduplicate events by ID to prevent race conditions where
+  // the same event from multiple calendars creates duplicate Notion pages
+  const uniqueEventsMap = new Map<string, { event: CalendarEvent; calendarName: string }>();
+  allGoogleEvents.forEach((item) => {
+    uniqueEventsMap.set(item.event.id, item);
+  });
+  const uniqueGoogleEvents = Array.from(uniqueEventsMap.values());
+
   const limit = pLimit(5);
   
-  const syncTasks = allGoogleEvents.map(({ event, calendarName }) =>
+  const syncTasks = uniqueGoogleEvents.map(({ event, calendarName }) =>
     limit(async () => {
       try {
         if (notionPageMap.has(event.id)) {
